@@ -1,0 +1,19 @@
+<script src="https://assets.crowd.aws/crowd-html-elements.js"></script>
+
+<crowd-form>
+  <crowd-bounding-box
+    id="annotator"
+    name="myTexts"
+    src="{{ task.input.taskObject | grant_read_access }}"
+    header="Please draw boxes around each storage bin"
+    labels="['Empty', 'Full']"
+  >
+    <short-instructions>
+      Draw a bounding box for each bin, classifying it as Full or Empty.
+    </short-instructions>
+
+    <full-instructions>
+      Draw a bounding box around each corner, trying to keep the box small and centered around the corner of the shelving unit.
+    </full-instructions>
+  </crowd-bounding-box>
+</crowd-form>

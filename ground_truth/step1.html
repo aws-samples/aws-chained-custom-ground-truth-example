@@ -1,0 +1,41 @@
+<script src="https://assets.crowd.aws/crowd-html-elements.js"></script>
+
+<crowd-form>
+  <div id="errorBox"></div>
+
+  <crowd-polygon
+    name="annotatedResult"
+    src="{{ task.input.taskObject | grant_read_access }}"
+    header="Draw a polygon the shelving unit, with a vertex at each corner"
+    labels="['Bounding Polygon']"
+  >
+    <short-instructions>
+      Draw a bounding polygon with a vertex at each corner.  Make sure you have exactly 4 vertices in your polygon.
+    </short-instructions>
+
+    <full-instructions>
+      Draw a bounding polygon with a vertex at each corner.  Make sure you have exactly 4 vertices in your polygon.
+    </full-instructions>
+  </crowd-bounding-box>
+</crowd-form>
+
+<script>
+  document.querySelector('crowd-form').onsubmit = function(e) {
+    const polygons = document.querySelector('crowd-polygon').value.polygons || document.querySelector('crowd-polygon')._submittableValue.polygons;
+    if (polygons.length != 1) {
+      e.preventDefault();
+      errorBox.innerHTML = '<crowd-alert type="error" dismissible>Only one bounding polygon is allowed.</crowd-alert>';
+      errorBox.scrollIntoView();
+      return;
+    }
+    const vertices = polygons[0].vertices;
+    if (vertices.length != 4) {
+      e.preventDefault();
+      errorBox.innerHTML = '<crowd-alert type="error" dismissible>The bounding polygon must have exactly 4 vertices.</crowd-alert>';
+      errorBox.scrollIntoView();
+      return;
+    }
+  };
+</script>
+
+
