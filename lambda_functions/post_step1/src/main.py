@@ -11,6 +11,7 @@ REGION = os.getenv('REGION', 'us-east-1')
 logger = logging.getLogger()
 logger.setLevel(LOG_LEVEL)
 s3 = boto3.resource('s3', region_name=REGION)
+TEMP_IMAGE_NAME = '/tmp/temp.jpg'
 
 """
 Portions of this code were adapted from
@@ -31,7 +32,7 @@ def get_bucket_and_key(url):
 
 
 def download_file(local_path, bucket_name, key):
-    print(f'downloading {key} to {local_path}')
+    print(f'downloading from {bucket_name} / {key} to {local_path}')
     bucket = s3.Bucket(bucket_name)
     object = bucket.Object(key)
     object.download_file(local_path)
@@ -53,14 +54,16 @@ def get_json_from_s3(bucket_name, key):
 
 
 def download_image(bucket_name, key):
-    local_path = "/tmp/temp.jpg"
+    local_path = TEMP_IMAGE_NAME
     download_file(local_path, bucket_name, key)
 
 
 def get_name_for_deskewed(image_file_name):
     # note that this also strips off any path
     name, ext = os.path.splitext(os.path.basename(image_file_name))
-    return name + '-deskewed.' + ext
+    new_name = name + '-deskewed' + ext
+    print(f'get_name_for_deskewed({image_file_name}) = {new_name}')
+    return new_name
 
 
 def get_destination_points(corners):
@@ -114,11 +117,14 @@ def unwarp(img, src, dst):
 
 
 def deskew_image(vertices):
+    # convert vertices from a list of dicts to a list of tuples
+    vert_tuples = [(d['x'], d['y']) for d in vertices]
+
     # need to make sure points are ordered UL, UR, LL, LR (upper/lower left/right)
-    leftmost = set(sorted(vertices, key=lambda el: el['x'])[:2])
-    topmost = set(sorted(vertices, key=lambda el: el['y'])[:2])
-    rightmost = set(sorted(vertices, reverse=True, key=lambda el: el['x'])[:2])
-    bottommost = set(sorted(vertices, reverse=True, key=lambda el: el['y'])[:2])
+    leftmost = set(sorted(vert_tuples, key=lambda el: el[0])[:2])
+    topmost = set(sorted(vert_tuples, key=lambda el: el[1])[:2])
+    rightmost = set(sorted(vert_tuples, reverse=True, key=lambda el: el[0])[:2])
+    bottommost = set(sorted(vert_tuples, reverse=True, key=lambda el: el[1])[:2])
 
     upperleft = leftmost & topmost
     upperright = rightmost & topmost
@@ -127,13 +133,17 @@ def deskew_image(vertices):
 
     corners = [upperleft.pop(), upperright.pop(), bottomleft.pop(), bottomright.pop()]
 
+    print(f'Corners are {corners}')
+
     # load the image so we can deskew it
-    image = cv2.imread('/tmp/temp.jpg')
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    print(f'Loading image')
+    image = cv2.imread(TEMP_IMAGE_NAME)
+    # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
     # now deskew
+    print(f'Getting dest points')
     destination_points, h, w = get_destination_points(corners)
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    print(f'Unwarping')
     un_warped = unwarp(image, np.float32(corners), destination_points)
     cropped = un_warped[0:h, 0:w]
 
@@ -145,36 +155,39 @@ def process_results(event):
     url = event["payload"]["s3Uri"]
     bucket_name, file_name = get_bucket_and_key(url)
     data = get_json_from_s3(bucket_name, file_name)
+    print(f'Got annotations: {json.dumps(data, indent=2)}')
 
-    # step 2: parse the JSON sent back from the UI
+    # step 2: parse the JSON sent back from the UI for each image
     for item in data:
         # get the corners
         all_annotations = item['annotations']
+        print(f'For item, got annotations: {json.dumps(all_annotations, indent=2)}')
         for annotation in all_annotations:
             all_data = json.loads(annotation['annotationData']['content'])
             print(f'Got the following data from annotations: {json.dumps(all_data, indent=2)}')
             # each annotation has a list of vertices
-            vertices = all_data['annotatedResult']['polygons']['vertices']
-
-        print(f'Got vertices: {json.dumps(vertices, indent=2)}')
+            vertices = all_data['annotatedResult']['polygons'][0]['vertices']
+            print(f'Got vertices: {json.dumps(vertices, indent=2)}')
 
         # get the name of the image that was processed
         # and download it from S3 to local storage as /tmp/temp.jpg
         image_file_name = item['dataObject']['s3Uri']
-        download_image(bucket_name, image_file_name)
+        download_image(bucket_name, os.path.basename(image_file_name))
 
         # de-skew it
         deskewed_image = deskew_image(vertices)
 
-        # and save it to a new file name (based on the original)
+        # and save it to a new local file name (based on the original)
         new_image_name = get_name_for_deskewed(image_file_name)
-        print(f'Deskewed image will be saved as {new_image_name}')
-        cv2.imwrite(new_image_name, deskewed_image)
+        local_new_image_name = f'/tmp/{new_image_name}'
+        print(f'Deskewed image will be saved as {local_new_image_name}')
+        cv2.imwrite(local_new_image_name, deskewed_image)
 
         # and then copy from local /tmp back to S3, so the next job can get it
-        upload_from_local_file(bucket_name, new_image_name, f'/tmp/{new_image_name}')
+        upload_from_local_file(bucket_name, new_image_name, local_new_image_name)
 
 
 def lambda_handler(event, context):
     logger.info(f'In lambda post_step1 for event {json.dumps(event, indent=2)}')
+    logger.info(f'Region is {REGION}')
     return process_results(event)

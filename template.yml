@@ -3,37 +3,32 @@ Transform: AWS::Serverless-2016-10-31
 Description: >
   Required resources for example chained Ground Truth jobs
 
+# NOTE: OpenCV (used by the Step1_post Lambda works well with Python 3.7,
+# but some dependencies are missing in later versions)
 Globals:
   Function:
     Runtime: python3.7
 
-Parameters:
-  S3SourceBucket:
-    Type: String
-    Description: Enter the name of the S3 bucket that contains the starting images
-
 Resources:
-  #######################
-  # ROLES
-  #######################
-  GroundTruthLambdaRole:
-    Type: "AWS::IAM::Role"
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: "sts:AssumeRole"
-          - Effect: Allow
-            Principal:
-              Service: sagemaker.amazonaws.com
-            Action: "sts:AssumeRole"
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-        - arn:aws:iam::aws:policy/AmazonSageMakerGroundTruthExecution
 
+  #######################
+  # S3 BUCKET
+  #######################
+  S3SourceBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "chained-gt-source-${AWS::AccountId}"
+      AccessControl: "BucketOwnerFullControl"
+      VersioningConfiguration:
+        Status: Suspended
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - '*'
+            AllowedMethods:
+              - GET
+            AllowedOrigins:
+              - '*'
 
   #############################################################################
   # Ground Truth Custom Lambdas
@@ -44,16 +39,16 @@ Resources:
     Properties:
       CodeUri: lambda_functions/pre_step1/src
       Handler: main.lambda_handler
-      Role: !GetAtt GroundTruthLambdaRole.Arn
 
   SageMakerStep1PostLambda:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: lambda_functions/post_step1/src
       Handler: main.lambda_handler
-      Role: !GetAtt GroundTruthLambdaRole.Arn
+      Timeout: 300
+      MemorySize: 2048
       Policies:
-        - S3ReadPolicy:
+        - S3CrudPolicy:
             BucketName: !Ref S3SourceBucket
 
   SageMakerStep2PreLambda:
@@ -61,11 +56,9 @@ Resources:
     Properties:
       CodeUri: lambda_functions/pre_step2/src
       Handler: main.lambda_handler
-      Role: !GetAtt GroundTruthLambdaRole.Arn
 
   SageMakerStep2PostLambda:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: lambda_functions/post_step2/src
       Handler: main.lambda_handler
-      Role: !GetAtt GroundTruthLambdaRole.Arn
