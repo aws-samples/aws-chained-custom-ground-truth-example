@@ -62,3 +62,8 @@ Resources:
     Properties:
       CodeUri: lambda_functions/post_step2/src
       Handler: main.lambda_handler
+      Timeout: 300
+      MemorySize: 2048
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref S3SourceBucket

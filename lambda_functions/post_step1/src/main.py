@@ -133,17 +133,11 @@ def deskew_image(vertices):
 
     corners = [upperleft.pop(), upperright.pop(), bottomleft.pop(), bottomright.pop()]
 
-    print(f'Corners are {corners}')
-
     # load the image so we can deskew it
-    print(f'Loading image')
     image = cv2.imread(TEMP_IMAGE_NAME)
-    # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
     # now deskew
-    print(f'Getting dest points')
     destination_points, h, w = get_destination_points(corners)
-    print(f'Unwarping')
     un_warped = unwarp(image, np.float32(corners), destination_points)
     cropped = un_warped[0:h, 0:w]
 
@@ -156,6 +150,7 @@ def process_results(event):
     bucket_name, file_name = get_bucket_and_key(url)
     data = get_json_from_s3(bucket_name, file_name)
     print(f'Got annotations: {json.dumps(data, indent=2)}')
+    return_data = []
 
     # step 2: parse the JSON sent back from the UI for each image
     for item in data:
@@ -185,6 +180,19 @@ def process_results(event):
 
         # and then copy from local /tmp back to S3, so the next job can get it
         upload_from_local_file(bucket_name, new_image_name, local_new_image_name)
+
+        # and add this information to our return data for each image
+        annotation_info = {
+            "datasetObjectId": item['datasetObjectId'],
+            "consolidatedAnnotation": {
+                "content": {
+                    "source-ref": f"s3://{bucket_name}/{new_image_name}",
+                    event["labelAttributeName"]: {}
+                }
+            }
+        }
+        return_data.append(annotation_info)
+    return return_data
 
 
 def lambda_handler(event, context):

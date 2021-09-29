@@ -74,5 +74,19 @@ Under the `Task type` header, choose `Custom` as the Task category, then click o
 
 On the next page you'll specify the Worker Type as `Private` and choose the private workteam you set up in the earlier step.  Then copy the code from the `step1.html` file found in this repo and paste it into the text box under `Templates`.  Make sure the template type is set to `Custom`.  Next, using the dropdowns at the bottom of the page, select the pre- and post-GT Lambda functions that were created by the `cloudformation.yml` file you deployed in part 1 of these instructions.  Then click on the `Create` button to create the labeling job.
 
-## Part 4: Deploy the second Ground Truth job
+## Part 4: Do the labeling
+
+At this point, log in as a labeler (a member of the labeling team created in step 2). You'll see a labeling job waiting for processing (if you do not, please wait 5 minutes and hit refresh, since there is sometimes a delay between creating a labeling job and it showing up for a labeler to process). Once the labeling job is started, click on the image at the four corners of the shelving unit in order to define a polygon. Be sure to click on the first vertex in order to close the polygon.
+
+## Part 5: Adding a chained labeling job
+
+Once the first labeling job is complete, go to the Ground Truth console and stop the job. Wait until the status shows `Stopped`, and then select the job and choose `Chain Job`.  Since this is a chained job, many of the fields will be filled in for you. Be sure to paste in the HTML markup from `step2.html` (found under the the `ground_truth` folder in this repo), and select the `Step2` pre- and post-Lambdas from the dropdowns.
+
+## Part 6: Do the labeling
+
+The second chained labeling job is used to define bounding boxes around each bin in the now-deskewed image. Be sure to choose the label ("Empty" or "Full") and then draw bounding boxes for each bin.
+
+## Part 7: Examine the results
+
+The post-GT Lambda function for the `step2` labeling job extracts an image of each bin and then augments it through different image processing techniques such as horizontal flipping, creating variations of brightness and contrast, and others. The final resulting images are uploaded to the original S3 bucket, with prefixes (based on the labels). These resulting images can then be used for model training.
 
