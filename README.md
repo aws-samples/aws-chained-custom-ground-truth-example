@@ -11,8 +11,6 @@ You'll need AWS SAM and the AWS CLI installed in order to deploy the code.
 
 [AWS CLI Installation instructions](https://aws.amazon.com/cli/)
 
-&nbsp;
-
 ## Repo Structure
 
   ```text
@@ -28,15 +26,14 @@ You'll need AWS SAM and the AWS CLI installed in order to deploy the code.
 
 ## Part 1: Deploy the infrastructure
 
-The first step is to create all of the required infrastructure, which is done using `template.yml`.  SAM uses CloudFormation-style scripts to create required infrastructure, which in this case includes:
+The first step is to create all of the required infrastructure, which is done using `template.yml`.  SAM uses CloudFormation-style scripts to create required infrastructure, which in this case includes
 
-- An IAM role for the pre- and post-GT lambdas to run under
 - Lambda functions for the pre- and post-GT lamdbas
+- An S3 bucket to store the original images, and generated images
 
-### Deploying Manually
 To deploy the pipeline, go to the top level directory of your local version of this repo and use the following commands:
 
-`sam package --use-container`
+`sam build --use-container`
 
 (Note that "--use-container" may not be necessary for you, depending on the operating system used.  On Windows computers it's generally needed, but you can try it without.)
 
@@ -60,11 +57,11 @@ Please note the team ARN, which is visible when you select the team.  You'll nee
 
 Unfortunately, setting up labeling jobs in GT isn't supported by SAM or CloudFormation templates.  Because of this, you'll need to create it using the AWS console - that process is described next.
 
-Your training images must be stored in an S3 bucket with CORS enabled.  Be sure to set up your bucket properly, or your labeling jobs will not work correctly.
+Your training images must be stored in an S3 bucket with CORS enabled.  The bucket created by the SAM template (described above) sets up the bucket with the correct CORS settings.
 
-First, upload your training images to S3. There are the image files that show an entire shelving unit, photographed from an angle.  From a local directory that contains the images, issue the following command to copy them to an S3 bucket:
+First, upload your training images to S3. These are the image files that show an entire shelving unit, photographed from an angle.  From a local directory that contains the images, issue the following command to copy them to an S3 bucket:
 
-`aws s3 sync . s3://BUCKET_NAME/PREFIX_FOR_BASE_IMAGES`
+`aws s3 sync . s3://BUCKET_NAME`
 
 The next step is to create a labeling job.
 
@@ -72,11 +69,11 @@ Go to the Ground Truth console (found under Amazon SageMaker), select `Labeling 
 
 Under the `Task type` header, choose `Custom` as the Task category, then click on the `Next` button.
 
-On the next page you'll specify the Worker Type as `Private` and choose the private workteam you set up in the earlier step.  Then copy the code from the `step1.html` file found in this repo and paste it into the text box under `Templates`.  Make sure the template type is set to `Custom`.  Next, using the dropdowns at the bottom of the page, select the pre- and post-GT Lambda functions that were created by the `cloudformation.yml` file you deployed in part 1 of these instructions.  Then click on the `Create` button to create the labeling job.
+On the next page you'll specify the Worker Type as `Private` and choose the private workteam you set up in the earlier step.  Then copy the code from the `step1.html` file found in this repo and paste it into the text box under `Templates`.  Make sure the template type is set to `Custom`.  Next, using the dropdowns at the bottom of the page, select the pre- and post-GT Lambda functions for `Step1` that were created by the `cloudformation.yml` file you deployed in part 1 of these instructions.  Then click on the `Create` button to create the labeling job.
 
 ## Part 4: Do the labeling
 
-At this point, log in as a labeler (a member of the labeling team created in step 2). You'll see a labeling job waiting for processing (if you do not, please wait 5 minutes and hit refresh, since there is sometimes a delay between creating a labeling job and it showing up for a labeler to process). Once the labeling job is started, click on the image at the four corners of the shelving unit in order to define a polygon. Be sure to click on the first vertex in order to close the polygon.
+At this point, log in as a labeler (a member of the labeling team created in step 2). You'll see a labeling job waiting for processing (if you do not, please wait 5 minutes and hit refresh, since there is sometimes a delay between creating a labeling job and it showing up for a labeler to process). Once the labeling job is started, click on the image at the four corners of the shelving unit in order to define a polygon. Be sure to click on the first vertex in order to close the polygon. Repeat this process for each of the original images.
 
 ## Part 5: Adding a chained labeling job
 
@@ -84,9 +81,9 @@ Once the first labeling job is complete, go to the Ground Truth console and stop
 
 ## Part 6: Do the labeling
 
-The second chained labeling job is used to define bounding boxes around each bin in the now-deskewed image. Be sure to choose the label ("Empty" or "Full") and then draw bounding boxes for each bin.
+The second chained labeling job is used to define bounding boxes around each bin in the now-deskewed image. Be sure to choose the label ("Empty" or "Full") and then draw bounding boxes for each bin.  Complete the labeling job.
 
 ## Part 7: Examine the results
 
-The post-GT Lambda function for the `step2` labeling job extracts an image of each bin and then augments it through different image processing techniques such as horizontal flipping, creating variations of brightness and contrast, and others. The final resulting images are uploaded to the original S3 bucket, with prefixes (based on the labels). These resulting images can then be used for model training.
+The post-GT Lambda function for the `step2` labeling job extracts an image of each bin and then augments it through different image processing techniques such as horizontal flipping, and creating variations of brightness, contrast, and sharpness. The final resulting images are uploaded to the original S3 bucket, with a `training_data` prefix, and a "subfolder" based on the labels. These resulting images can then be used for model training.
 

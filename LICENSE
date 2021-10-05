@@ -1,5 +1,4 @@
-<!--
-  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -13,24 +12,4 @@ FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
 COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
--->
 
-<script src="https://assets.crowd.aws/crowd-html-elements.js"></script>
-
-<crowd-form>
-  <crowd-bounding-box
-    id="annotator"
-    name="myTexts"
-    src="{{ task.input.taskObject | grant_read_access }}"
-    header="Please draw boxes around each storage bin"
-    labels="['Empty', 'Full']"
-  >
-    <short-instructions>
-      Draw a bounding box for each bin, classifying it as Full or Empty.
-    </short-instructions>
-
-    <full-instructions>
-      Draw a bounding box around the front opening of each bin
-    </full-instructions>
-  </crowd-bounding-box>
-</crowd-form>
