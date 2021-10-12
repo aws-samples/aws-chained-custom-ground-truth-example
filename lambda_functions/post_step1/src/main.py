@@ -28,13 +28,6 @@ logger.setLevel(LOG_LEVEL)
 s3 = boto3.resource('s3', region_name=REGION)
 TEMP_IMAGE_NAME = '/tmp/temp.jpg'
 
-"""
-Portions of this code were adapted from
-https://github.com/ashuta03/automatic_skew_correction_using_corner_detectors_and_homography
-which accompanies the following blog post:
-https://blog.ekbana.com/skew-correction-using-corner-detectors-and-homography-fda345e42e65
-"""
-
 
 def get_bucket_and_key(url):
     url = html.unescape(url)
@@ -81,53 +74,31 @@ def get_name_for_deskewed(image_file_name):
     return new_name
 
 
-def get_destination_points(corners):
-    """
-    -Get destination points from corners of warped images
-    -Approximating height and width of the rectangle: we take maximum of the 2 widths and 2 heights
+def create_deskewed_image(image, corners):
+    # break these into individual coordinates to help readability
+    upperleft = corners[0]
+    upperright = corners[1]
+    lowerleft = corners[2]
+    lowerright = corners[3]
 
-    Args:
-        corners: list
+    # get max width and height via Pythagorean distance formula.
+    # note that element[0] is the X coordinate, element[1] is the Y
+    upper_width = np.sqrt((upperleft[0] - upperright[0]) ** 2 + (upperleft[1] - upperright[1]) ** 2)
+    lower_width = np.sqrt((lowerleft[0] - lowerright[0]) ** 2 + (lowerleft[1] - lowerright[1]) ** 2)
+    width = max(int(upper_width), int(lower_width))
+    left_height = np.sqrt((upperleft[0] - lowerleft[0]) ** 2 + (upperleft[1] - lowerleft[1]) ** 2)
+    right_height = np.sqrt((upperright[0] - lowerright[0]) ** 2 + (upperright[1] - lowerright[1]) ** 2)
+    height = max(int(left_height), int(right_height))
 
-    Returns:
-        destination_corners: list
-        height: int
-        width: int
-    """
+    new_corners = np.float32([(0, 0), (width - 1, 0), (0, height - 1), (width - 1, height - 1)])
+    old_corners = np.float32(corners)
 
-    w1 = np.sqrt((corners[0][0] - corners[1][0]) ** 2 + (corners[0][1] - corners[1][1]) ** 2)
-    w2 = np.sqrt((corners[2][0] - corners[3][0]) ** 2 + (corners[2][1] - corners[3][1]) ** 2)
-    w = max(int(w1), int(w2))
+    # get the mapping matrix between the old image and the new one
+    matrix, _ = cv2.findHomography(old_corners, new_corners, method=cv2.RANSAC, ransacReprojThreshold=3.0)
 
-    h1 = np.sqrt((corners[0][0] - corners[2][0]) ** 2 + (corners[0][1] - corners[2][1]) ** 2)
-    h2 = np.sqrt((corners[1][0] - corners[3][0]) ** 2 + (corners[1][1] - corners[3][1]) ** 2)
-    h = max(int(h1), int(h2))
-
-    destination_corners = np.float32([(0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1)])
-
-    print('\nThe destination points are: \n')
-    for index, c in enumerate(destination_corners):
-        character = chr(65 + index) + "'"
-        print(character, ':', c)
-
-    print('\nThe approximated height and width of the original image is: \n', (h, w))
-    return destination_corners, h, w
-
-
-def unwarp(img, src, dst):
-    """
-    Args:
-        img: np.array
-        src: list
-        dst: list
-
-    Returns:
-        un_warped: np.array
-    """
-    h, w = img.shape[:2]
-    H, _ = cv2.findHomography(src, dst, method=cv2.RANSAC, ransacReprojThreshold=3.0)
-    print('\nThe homography matrix is: \n', H)
-    un_warped = cv2.warpPerspective(img, H, (w, h), flags=cv2.INTER_LINEAR)
+    # and then do the mapping
+    source_height, source_width = image.shape[:2]
+    un_warped = cv2.warpPerspective(image, matrix, (source_width, source_height), flags=cv2.INTER_LINEAR)
     return un_warped
 
 
@@ -143,20 +114,16 @@ def deskew_image(vertices):
 
     upperleft = leftmost & topmost
     upperright = rightmost & topmost
-    bottomleft = leftmost & bottommost
-    bottomright = rightmost & bottommost
+    lowerleft = leftmost & bottommost
+    lowerright = rightmost & bottommost
 
-    corners = [upperleft.pop(), upperright.pop(), bottomleft.pop(), bottomright.pop()]
+    corners = [upperleft.pop(), upperright.pop(), lowerleft.pop(), lowerright.pop()]
 
     # load the image so we can deskew it
     image = cv2.imread(TEMP_IMAGE_NAME)
 
     # now deskew
-    destination_points, h, w = get_destination_points(corners)
-    un_warped = unwarp(image, np.float32(corners), destination_points)
-    cropped = un_warped[0:h, 0:w]
-
-    return cropped
+    return create_deskewed_image(image, corners)
 
 
 def process_results(event):
