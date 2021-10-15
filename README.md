@@ -1,8 +1,14 @@
 # Example of chained custom Ground Truth Jobs
 
-This code demonstrates how to create custom AWS SageMaker Ground Truth-based user interfaces, and how to chain them together in order to perform multiple steps in preparing image data for either training or inference.
+This code demonstrates how to chain two custom AWS SageMaker Ground Truth labeling jobs together in order to perform multi-stage image labeling. In this case, assume we are creating a ML model that determines whether individual bins within a shelving unit are empty or full.
 
-Note that for convenience, the abbreviation "GT" will be used to refer to Ground Truth in this README.
+The first labeling job is used to de-skew an image, like a shelving unit photographed from an angle. The individual bins within the shelving unit won't be orthogonal due to the camera angle, so we'd like to isolate just the shelving unit, and also adjust for the angle if we can. The first job allows selection of four corners of the shelving unit using a polygon selection tool.
+
+Once that labeling job is complete, the post-UI Lambda function will isolate the selected portion of the original image and save it as a new image into the same S3 bucket that the source image is in. Since this involves mapping from a non-orthogonal shape to a rectangle, there will be some image distortion in the final image. This process is called warping or deskewing.
+
+The second, chained labeling job will take that new, warped image and do simple bounding box labeling of each bin within the shelving unit. The labels are `Empty` and `Full`, since bin images will be used to train a model to determine if restocking is required. Note that although the image is warped, it is easier selecting rectangular bounding box regions in it, than from the original image photographed from an angle. This is the reason we warped the image in the first place.
+
+Once the second labeling job is complete, the post-UI Lambda function will isolate each labeled rectangle from the source image. Each of those extracted images will then have multiple variations created, including horizontal mirroring, and variations in brightness, contrast, and sharpness. All of those new (augmented) images will be saved in the same S3 bucket that the source image is in, with prefixes that are based on the selected label. These images can then be easily used to train a model.
 
 ## Requirements
 You'll need AWS SAM and the AWS CLI installed in order to deploy the code.
