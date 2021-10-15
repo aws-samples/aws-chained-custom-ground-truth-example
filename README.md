@@ -87,3 +87,11 @@ The second chained labeling job is used to define bounding boxes around each bin
 
 The post-GT Lambda function for the `step2` labeling job extracts an image of each bin and then augments it through different image processing techniques such as horizontal flipping, and creating variations of brightness, contrast, and sharpness. The final resulting images are uploaded to the original S3 bucket, with a `training_data` prefix, and a "subfolder" based on the labels. These resulting images can then be used for model training.
 
+## Security
+
+See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
+
+## License
+
+This library is licensed under the MIT-0 License. See the LICENSE file.
+
