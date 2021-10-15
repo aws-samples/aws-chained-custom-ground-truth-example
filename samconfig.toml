@@ -3,7 +3,7 @@ version = 0.1
 [default.deploy]
 [default.deploy.parameters]
 stack_name = "chained-gt"
-s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-gregsomm"
+s3_bucket = "YOUR BUCKET NAME GOES HERE"
 s3_prefix = "chained-gt"
 region = "us-east-1"
 confirm_changeset = false
