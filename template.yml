@@ -21,6 +21,10 @@ Resources:
       AccessControl: "BucketOwnerFullControl"
       VersioningConfiguration:
         Status: Suspended
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: 'aws:kms'
       CorsConfiguration:
         CorsRules:
           - AllowedHeaders:
@@ -50,6 +54,8 @@ Resources:
       Policies:
         - S3CrudPolicy:
             BucketName: !Ref S3SourceBucket
+        - KMSDecryptPolicy:
+            KeyId: 'aws/s3'
 
   SageMakerStep2PreLambda:
     Type: AWS::Serverless::Function
@@ -67,3 +73,5 @@ Resources:
       Policies:
         - S3CrudPolicy:
             BucketName: !Ref S3SourceBucket
+        - KMSDecryptPolicy:
+            KeyId: 'aws/s3'
