@@ -20,7 +20,7 @@ Resources:
       BucketName: !Sub "chained-gt-source-${AWS::AccountId}"
       AccessControl: "BucketOwnerFullControl"
       VersioningConfiguration:
-        Status: Suspended
+        Status: Enabled
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
