@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: >
+Description: (PACE000003/v1/backend)>
   Required resources for example chained Ground Truth jobs
 
 # NOTE: OpenCV (used by the Step1_post Lambda works well with Python 3.7,
@@ -8,6 +8,11 @@ Description: >
 Globals:
   Function:
     Runtime: python3.7
+
+Metadata:
+    ID: PACE000003
+    Version: 1
+    Stack: backend
 
 Resources:
 
